@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Toyota Corolla Grande - Society Driving Simulator | Ahmad Bin Shifa</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { margin: 0; padding: 0; overflow: hidden; background: #0f172a; font-family: 'Segoe UI', system-ui, sans-serif; user-select: none; }
+        canvas { display: block; }
+        
+        .glass-ui {
+            background: rgba(15, 23, 42, 0.88);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+        }
+
+        .gear-btn {
+            transition: all 0.2s ease;
+        }
+        .gear-btn.active {
+            background: #f59e0b;
+            color: #020617;
+            font-weight: 900;
+            box-shadow: 0 0 15px rgba(245, 158, 11, 0.5);
+            transform: scale(1.08);
+        }
+    </style>
+</head>
+<body class="text-white">
+
+    <!-- CANVAS GAME VIEW -->
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- HUD OVERLAY -->
+    <div class="absolute inset-0 pointer-events-none flex flex-col justify-between p-4 sm:p-6">
+        
+        <!-- TOP BAR: BRANDING & PARKING STATUS -->
+        <div class="flex justify-between items-start pointer-events-auto">
+            <!-- Branding -->
+            <div class="glass-ui p-3 rounded-2xl shadow-2xl flex items-center gap-3">
+                <div class="w-10 h-10 bg-gradient-to-tr from-amber-500 to-red-600 rounded-xl flex items-center justify-center text-xl font-bold shadow-lg shadow-amber-500/20">
+                    🚘
+                </div>
+                <div>
+                    <h1 class="text-xs font-black text-amber-400 tracking-wider uppercase">TOYOTA GRANDE SIMULATOR</h1>
+                    <p class="text-[11px] text-slate-300">Made by <span class="text-emerald-400 font-bold">Ahmad Bin Shifa</span></p>
+                </div>
+            </div>
+
+            <!-- Parking Zone Status -->
+            <div class="glass-ui px-5 py-3 rounded-2xl text-center shadow-2xl">
+                <p class="text-[10px] uppercase font-bold text-slate-400">Society Spot Status</p>
+                <p id="parkingStatus" class="text-sm font-black text-amber-400">Find Green Parking Zone</p>
+            </div>
+        </div>
+
+        <!-- CENTER RADIO INFOTAINMENT DISPLAY -->
+        <div class="self-center pointer-events-auto glass-ui p-4 rounded-3xl shadow-2xl border border-slate-700/80 max-w-sm w-full my-2">
+            <div class="flex items-center justify-between mb-2">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-radio text-amber-400 text-sm"></i>
+                    <span class="text-xs font-bold text-slate-200">Grande Infotainment Radio</span>
+                </div>
+                <span id="radioFreq" class="text-[10px] bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full font-mono border border-amber-500/30">98.5 FM</span>
+            </div>
+
+            <!-- Track Info -->
+            <div class="bg-slate-950/80 p-2.5 rounded-xl border border-slate-800 text-center mb-3">
+                <p id="radioTrackName" class="text-xs font-bold text-emerald-400 truncate">Track 1: Grande City Cruiser</p>
+                <p id="radioGenre" class="text-[10px] text-slate-400">Genre: Chill Lo-Fi Beats</p>
+            </div>
+
+            <!-- Controls -->
+            <div class="flex items-center justify-center gap-4">
+                <button onclick="prevTrack()" class="w-9 h-9 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs flex items-center justify-center transition-all"><i class="fa-solid fa-backward"></i></button>
+                <button id="radioPlayBtn" onclick="toggleRadio()" class="w-11 h-11 rounded-full bg-amber-500 hover:bg-amber-400 text-slate-950 text-sm font-bold flex items-center justify-center transition-all shadow-lg shadow-amber-500/30"><i class="fa-solid fa-play"></i></button>
+                <button onclick="nextTrack()" class="w-9 h-9 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs flex items-center justify-center transition-all"><i class="fa-solid fa-forward"></i></button>
+            </div>
+        </div>
+
+        <!-- BOTTOM DASHBOARD: SPEEDOMETER & TRANSMISSION GEARS -->
+        <div class="flex flex-col sm:flex-row justify-between items-end gap-4 pointer-events-auto">
+            
+            <!-- Controls Hint -->
+            <div class="glass-ui p-3.5 rounded-2xl shadow-xl text-xs text-slate-300 space-y-1 hidden md:block">
+                <p class="font-bold text-amber-400 mb-1">🎮 Controls:</p>
+                <p><kbd class="bg-slate-800 border border-slate-600 px-1.5 py-0.5 rounded text-[10px]">W / ↑</kbd> Gas Pedal</p>
+                <p><kbd class="bg-slate-800 border border-slate-600 px-1.5 py-0.5 rounded text-[10px]">S / ↓</kbd> Brake</p>
+                <p><kbd class="bg-slate-800 border border-slate-600 px-1.5 py-0.5 rounded text-[10px]">A / D</kbd> Steer Left / Right</p>
+            </div>
+
+            <!-- Automatic Gear Selector Box (P, N, D, R, S) -->
+            <div class="glass-ui p-3 rounded-2xl shadow-2xl text-center">
+                <p class="text-[10px] uppercase font-bold text-slate-400 mb-2">Automatic Transmission</p>
+                <div class="flex gap-1.5">
+                    <button onclick="setGear('P')" id="gearP" class="gear-btn active w-9 h-11 rounded-xl bg-slate-800 text-slate-300 font-bold text-xs">P</button>
+                    <button onclick="setGear('R')" id="gearR" class="gear-btn w-9 h-11 rounded-xl bg-slate-800 text-slate-300 font-bold text-xs">R</button>
+                    <button onclick="setGear('N')" id="gearN" class="gear-btn w-9 h-11 rounded-xl bg-slate-800 text-slate-300 font-bold text-xs">N</button>
+                    <button onclick="setGear('D')" id="gearD" class="gear-btn w-9 h-11 rounded-xl bg-slate-800 text-slate-300 font-bold text-xs">D</button>
+                    <button onclick="setGear('S')" id="gearS" class="gear-btn w-9 h-11 rounded-xl bg-slate-800 text-amber-400 font-bold text-xs border border-amber-500/30">S</button>
+                </div>
+            </div>
+
+            <!-- Speedometer -->
+            <div class="glass-ui p-4 rounded-3xl shadow-2xl text-center min-w-[130px]">
+                <p id="speedometer" class="text-4xl font-black text-white italic tracking-tight">0</p>
+                <p class="text-[10px] font-bold text-amber-400 tracking-widest uppercase">KM / H</p>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- GAME ENGINE & AUDIO SYSTEM SCRIPT -->
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        // --- RADIO SYSTEM (7 Procedural Synthesized Songs) ---
+        const radioTracks = [
+            { id: 1, name: "Track 1: Grande City Cruiser", genre: "Lo-Fi Chill", freq: 110, bpm: 80 },
+            { id: 2, name: "Track 2: Midnight Highway", genre: "Synthwave Retro", freq: 140, bpm: 110 },
+            { id: 3, name: "Track 3: Society Drive", genre: "Upbeat Pop", freq: 160, bpm: 120 },
+            { id: 4, name: "Track 4: Sunset Boulevard", genre: "Chill Hop", freq: 90, bpm: 75 },
+            { id: 5, name: "Track 5: Ahmad's Vibe", genre: "Funk Groove", freq: 180, bpm: 115 },
+            { id: 6, name: "Track 6: Neon Night Drift", genre: "Electronic Bass", freq: 200, bpm: 128 },
+            { id: 7, name: "Track 7: Corolla Rush", genre: "High Octane Beats", freq: 220, bpm: 135 }
+        ];
+
+        let currentTrackIdx = 0;
+        let isRadioPlaying = false;
+        let audioCtx = null;
+        let radioOscillator = null;
+        let radioGain = null;
+        let radioTimer = null;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+
+        function playRadioSound() {
+            if (!isRadioPlaying) return;
+            initAudio();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+
+            const track = radioTracks[currentTrackIdx];
+            const now = audioCtx.currentTime;
+
+            // Generate procedural melodic synthesizer notes
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+
+            const scale = [track.freq, track.freq * 1.25, track.freq * 1.5, track.freq * 1.75, track.freq * 2];
+            const note = scale[Math.floor(Math.random() * scale.length)];
+
+            osc.type = currentTrackIdx % 2 === 0 ? 'sine' : 'triangle';
+            osc.frequency.setValueAtTime(note, now);
+
+            gain.gain.setValueAtTime(0.08, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            osc.start(now);
+            osc.stop(now + 0.3);
+
+            const interval = (60 / track.bpm) * 500;
+            radioTimer = setTimeout(playRadioSound, interval);
+        }
+
+        function toggleRadio() {
+            initAudio();
+            isRadioPlaying = !isRadioPlaying;
+            const playBtn = document.getElementById('radioPlayBtn');
+
+            if (isRadioPlaying) {
+                playBtn.innerHTML = `<i class="fa-solid fa-pause"></i>`;
+                playRadioSound();
+            } else {
+                playBtn.innerHTML = `<i class="fa-solid fa-play"></i>`;
+                clearTimeout(radioTimer);
+            }
+        }
+
+        function nextTrack() {
+            currentTrackIdx = (currentTrackIdx + 1) % radioTracks.length;
+            updateRadioUI();
+            if (isRadioPlaying) { clearTimeout(radioTimer); playRadioSound(); }
+        }
+
+        function prevTrack() {
+            currentTrackIdx = (currentTrackIdx - 1 + radioTracks.length) % radioTracks.length;
+            updateRadioUI();
+            if (isRadioPlaying) { clearTimeout(radioTimer); playRadioSound(); }
+        }
+
+        function updateRadioUI() {
+            const track = radioTracks[currentTrackIdx];
+            document.getElementById('radioTrackName').textContent = track.name;
+            document.getElementById('radioGenre').textContent = `Genre: ${track.genre}`;
+            document.getElementById('radioFreq').textContent = `${(90 + currentTrackIdx * 2.5).toFixed(1)} FM`;
+        }
+
+        // --- GAME PHYSICS & GEAR STATE ---
+        let currentGear = 'P'; // P, R, N, D, S
+        const keys = { up: false, down: false, left: false, right: false };
+
+        const car = {
+            x: 500,
+            y: 500,
+            width: 32,
+            length: 68,
+            angle: 0,
+            speed: 0,
+            maxSpeedD: 6.0,   // Drive max speed
+            maxSpeedS: 10.5,  // Sport mode max speed
+            maxSpeedR: -3.0,  // Reverse max speed
+            accel: 0.12,
+            friction: 0.97,
+            steerAngle: 0.04
+        };
+
+        function setGear(gear) {
+            currentGear = gear;
+            document.querySelectorAll('.gear-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(`gear${gear}`).classList.add('active');
+        }
+
+        // Key listeners
+        window.addEventListener('keydown', (e) => {
+            if (e.code === 'KeyW' || e.code === 'ArrowUp') keys.up = true;
+            if (e.code === 'KeyS' || e.code === 'ArrowDown') keys.down = true;
+            if (e.code === 'KeyA' || e.code === 'ArrowLeft') keys.left = true;
+            if (e.code === 'KeyD' || e.code === 'ArrowRight') keys.right = true;
+
+            // Gear hotkeys (P, R, N, D, S)
+            if (e.key.toUpperCase() === 'P') setGear('P');
+            if (e.key.toUpperCase() === 'R') setGear('R');
+            if (e.key.toUpperCase() === 'N') setGear('N');
+            if (e.key.toUpperCase() === 'D') setGear('D');
+            if (e.key.toUpperCase() === 'S') setGear('S');
+        });
+
+        window.addEventListener('keyup', (e) => {
+            if (e.code === 'KeyW' || e.code === 'ArrowUp') keys.up = false;
+            if (e.code === 'KeyS' || e.code === 'ArrowDown') keys.down = false;
+            if (e.code === 'KeyA' || e.code === 'ArrowLeft') keys.left = false;
+            if (e.code === 'KeyD' || e.code === 'ArrowRight') keys.right = false;
+        });
+
+        // --- SOCIETY HOUSING MAP DATA ---
+        const parkingZone = { x: 750, y: 350, width: 80, height: 120 };
+
+        const houses = [
+            { x: 100, y: 100, w: 220, h: 180, color: '#334155', roof: '#475569', label: 'House 01' },
+            { x: 380, y: 100, w: 220, h: 180, color: '#334155', roof: '#475569', label: 'House 02' },
+            { x: 660, y: 100, w: 220, h: 180, color: '#334155', roof: '#475569', label: 'House 03' },
+            
+            { x: 100, y: 600, w: 220, h: 180, color: '#334155', roof: '#475569', label: 'House 04' },
+            { x: 380, y: 600, w: 220, h: 180, color: '#334155', roof: '#475569', label: 'House 05' },
+            { x: 660, y: 600, w: 220, h: 180, color: '#334155', roof: '#475569', label: 'House 06' }
+        ];
+
+        // --- GAME UPDATE & RENDERING LOOP ---
+        function updateGame() {
+            // Gear specific dynamics
+            if (currentGear === 'P') {
+                // Parked: Brakes completely locked
+                car.speed = 0;
+            } else if (currentGear === 'N') {
+                // Neutral: Free rolling friction, gas pedal inactive
+                car.speed *= car.friction;
+            } else if (currentGear === 'D') {
+                // Drive Mode
+                if (keys.up) car.speed = Math.min(car.speed + car.accel, car.maxSpeedD);
+                else if (keys.down) car.speed = Math.max(car.speed - car.accel, 0);
+                else car.speed *= car.friction;
+            } else if (currentGear === 'R') {
+                // Reverse Mode
+                if (keys.up) car.speed = Math.max(car.speed - car.accel, car.maxSpeedR);
+                else if (keys.down) car.speed = Math.min(car.speed + car.accel, 0);
+                else car.speed *= car.friction;
+            } else if (currentGear === 'S') {
+                // Sport Mode (Faster acceleration & higher top speed!)
+                if (keys.up) car.speed = Math.min(car.speed + (car.accel * 2.2), car.maxSpeedS);
+                else if (keys.down) car.speed = Math.max(car.speed - car.accel, 0);
+                else car.speed *= car.friction;
+            }
+
+            // Steering dynamics
+            if (Math.abs(car.speed) > 0.1) {
+                const dir = car.speed > 0 ? 1 : -1;
+                if (keys.left) car.angle -= car.steerAngle * dir;
+                if (keys.right) car.angle += car.steerAngle * dir;
+            }
+
+            // Move car along angle
+            car.x += Math.sin(car.angle) * car.speed;
+            car.y -= Math.cos(car.angle) * car.speed;
+
+            // Speedometer update
+            const kmh = Math.round(Math.abs(car.speed) * 16);
+            document.getElementById('speedometer').textContent = kmh;
+
+            // Check parking area detection
+            const inParkingX = car.x > parkingZone.x && car.x < parkingZone.x + parkingZone.width;
+            const inParkingY = car.y > parkingZone.y && car.y < parkingZone.y + parkingZone.height;
+            const parkingStatus = document.getElementById('parkingStatus');
+
+            if (inParkingX && inParkingY) {
+                if (currentGear === 'P') {
+                    parkingStatus.textContent = "SUCCESSFULLY PARKED! 🏆";
+                    parkingStatus.className = "text-sm font-black text-emerald-400";
+                } else {
+                    parkingStatus.textContent = "In Spot! Shift to P Gear";
+                    parkingStatus.className = "text-sm font-black text-amber-400";
+                }
+            } else {
+                parkingStatus.textContent = "Find Green Parking Spot";
+                parkingStatus.className = "text-sm font-black text-slate-300";
+            }
+        }
+
+        // Render Toyota Corolla Altis Grande Top-Down Sprite
+        function drawGrandeCar() {
+            ctx.save();
+            ctx.translate(car.x, car.y);
+            ctx.rotate(car.angle);
+
+            // Car Shadow
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
+            ctx.fillRect(-car.width / 2 + 4, -car.length / 2 + 4, car.width, car.length);
+
+            // Grande White Sedan Body
+            ctx.fillStyle = '#f8fafc'; // Pure White Body
+            ctx.beginPath();
+            ctx.roundRect(-car.width / 2, -car.length / 2, car.width, car.length, 8);
+            ctx.fill();
+
+            // Black Side Mirrors
+            ctx.fillStyle = '#0f172a';
+            ctx.fillRect(-car.width / 2 - 4, -car.length / 2 + 18, 4, 8);
+            ctx.fillRect(car.width / 2, -car.length / 2 + 18, 4, 8);
+
+            // Black Sunroof & Windshield
+            ctx.fillStyle = '#0f172a';
+            // Front Windshield
+            ctx.fillRect(-car.width / 2 + 3, -car.length / 2 + 14, car.width - 6, 12);
+            // Sunroof
+            ctx.fillRect(-car.width / 2 + 5, -car.length / 2 + 30, car.width - 10, 14);
+            // Rear Glass
+            ctx.fillRect(-car.width / 2 + 4, -car.length / 2 + 48, car.width - 8, 10);
+
+            // LED Headlights (Grande Signature)
+            ctx.fillStyle = '#38bdf8';
+            ctx.fillRect(-car.width / 2 + 2, -car.length / 2 + 1, 7, 4);
+            ctx.fillRect(car.width / 2 - 9, -car.length / 2 + 1, 7, 4);
+
+            // Red Taillights
+            ctx.fillStyle = currentGear === 'P' || keys.down ? '#ef4444' : '#991b1b';
+            ctx.fillRect(-car.width / 2 + 2, car.length / 2 - 4, 7, 3);
+            ctx.fillRect(car.width / 2 - 9, car.length / 2 - 4, 7, 3);
+
+            // Toyota Grande Silver Grille Detail
+            ctx.fillStyle = '#cbd5e1';
+            ctx.fillRect(-6, -car.length / 2, 12, 2);
+
+            // Sport Mode Red Exhaust Glow
+            if (currentGear === 'S' && keys.up) {
+                ctx.fillStyle = '#f97316';
+                ctx.beginPath();
+                ctx.arc(0, car.length / 2 + 6, 6, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            ctx.restore();
+        }
+
+        function drawSocietyMap() {
+            // Camera follow view
+            ctx.save();
+            ctx.translate(canvas.width / 2 - car.x, canvas.height / 2 - car.y);
+
+            // Society Grass Base
+            ctx.fillStyle = '#064e3b';
+            ctx.fillRect(-1000, -1000, 3000, 3000);
+
+            // Society Asphalt Roads Grid
+            ctx.fillStyle = '#1e293b';
+            ctx.fillRect(0, 0, 1000, 900); // Main Sector Area
+
+            // Road Markings
+            ctx.strokeStyle = '#f59e0b';
+            ctx.setLineDash([20, 20]);
+            ctx.lineWidth = 3;
+
+            // Center Road Divider
+            ctx.beginPath();
+            ctx.moveTo(0, 450); ctx.lineTo(1000, 450);
+            ctx.moveTo(500, 0); ctx.lineTo(500, 900);
+            ctx.stroke();
+            ctx.setLineDash([]); // Reset line dash
+
+            // Draw Houses
+            houses.forEach(h => {
+                // Garden
+                ctx.fillStyle = '#047857';
+                ctx.fillRect(h.x - 10, h.y - 10, h.w + 20, h.h + 20);
+                // House Base
+                ctx.fillStyle = h.color;
+                ctx.fillRect(h.x, h.y, h.w, h.h);
+                // Roof
+                ctx.fillStyle = h.roof;
+                ctx.fillRect(h.x + 15, h.y + 15, h.w - 30, h.h - 30);
+
+                // Label
+                ctx.fillStyle = '#94a3b8';
+                ctx.font = 'bold 12px sans-serif';
+                ctx.fillText(h.label, h.x + 25, h.y + 35);
+            });
+
+            // Designated Society Green Parking Zone
+            ctx.fillStyle = 'rgba(16, 185, 129, 0.35)';
+            ctx.fillRect(parkingZone.x, parkingZone.y, parkingZone.width, parkingZone.height);
+            ctx.strokeStyle = '#10b981';
+            ctx.lineWidth = 3;
+            ctx.strokeRect(parkingZone.x, parkingZone.y, parkingZone.width, parkingZone.height);
+
+            // Parking Text
+            ctx.fillStyle = '#34d399';
+            ctx.font = 'bold 12px sans-serif';
+            ctx.fillText("PARK HERE", parkingZone.x + 8, parkingZone.y + 60);
+
+            // Draw Toyota Grande Car
+            drawGrandeCar();
+
+            ctx.restore();
+        }
+
+        function gameLoop() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            updateGame();
+            drawSocietyMap();
+            requestAnimationFrame(gameLoop);
+        }
+
+        gameLoop();
+    </script>
+</body>
+</html>
